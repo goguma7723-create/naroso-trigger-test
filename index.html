@@ -268,6 +268,119 @@
             }
         }
         
+        async function shareToInstagram() {
+            const resultCard = document.querySelector('.result-card');
+            
+            if (!resultCard) {
+                alert('⚠️ 결과 화면을 먼저 확인해주세요!');
+                return;
+            }
+            
+            // 모바일 기기 확인
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (!isMobile) {
+                alert('📱 인스타그램 스토리 공유는\n모바일에서만 가능합니다!\n\nPC에서는 "📸 사진으로 저장" 버튼을\n이용해주세요!');
+                return;
+            }
+            
+            // 캡처 전에 불필요한 요소 숨기기
+            const ctaSection = document.querySelector('.cta-section');
+            const shareSection = document.querySelector('.share-section');
+            const originalCtaDisplay = ctaSection ? ctaSection.style.display : '';
+            const originalShareDisplay = shareSection ? shareSection.style.display : '';
+            
+            if (ctaSection) ctaSection.style.display = 'none';
+            if (shareSection) shareSection.style.display = 'none';
+            
+            // 로딩 표시
+            const loadingDiv = document.createElement('div');
+            loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(107, 91, 149, 0.95); color: white; padding: 30px 50px; border-radius: 20px; font-size: 18px; z-index: 10000; font-weight: bold;';
+            loadingDiv.textContent = '📸 이미지 생성 중...';
+            document.body.appendChild(loadingDiv);
+            
+            try {
+                const canvas = await html2canvas(resultCard, {
+                    backgroundColor: '#ffffff',
+                    scale: 3,
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: false,
+                    scrollY: -window.scrollY,
+                    scrollX: -window.scrollX,
+                    windowWidth: resultCard.scrollWidth,
+                    windowHeight: resultCard.scrollHeight
+                });
+                
+                // 숨긴 요소 복원
+                if (ctaSection) ctaSection.style.display = originalCtaDisplay;
+                if (shareSection) shareSection.style.display = originalShareDisplay;
+                
+                document.body.removeChild(loadingDiv);
+                
+                canvas.toBlob(async function(blob) {
+                    // Web Share API 시도 (파일 공유 지원)
+                    if (navigator.share && navigator.canShare) {
+                        try {
+                            const file = new File([blob], '나로소_결과.png', { type: 'image/png' });
+                            
+                            if (navigator.canShare({ files: [file] })) {
+                                await navigator.share({
+                                    files: [file],
+                                    title: '나로소 감정테스트 결과',
+                                    text: '나의 감정 친구를 찾았어요! 🦊'
+                                });
+                                return; // 성공하면 여기서 종료
+                            }
+                        } catch (shareError) {
+                            console.log('Web Share API 실패:', shareError);
+                            // 실패 시 아래 대안 방법 계속
+                        }
+                    }
+                    
+                    // 대안: 이미지 다운로드 + 인스타그램 앱 열기
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    const date = new Date().toISOString().slice(0,10);
+                    link.download = `나로소_인스타_${date}.png`;
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    
+                    // 잠시 후 인스타그램 앱 열기 시도
+                    setTimeout(() => {
+                        // 인스타그램 앱 URL 스킴
+                        const instagramUrl = 'instagram://story-camera';
+                        
+                        // 앱 열기 시도
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = instagramUrl;
+                        document.body.appendChild(iframe);
+                        
+                        setTimeout(() => {
+                            document.body.removeChild(iframe);
+                            
+                            // 안내 메시지
+                            alert('📷 인스타그램 스토리 공유\n\n✅ 이미지가 저장되었습니다!\n\n1️⃣ 인스타그램 앱 열기\n2️⃣ 스토리 만들기 (+)\n3️⃣ 저장된 이미지 선택\n4️⃣ 스토리 게시! 🎉\n\n💡 링크를 추가하려면\n   링크 스티커를 사용하세요!');
+                        }, 100);
+                    }, 500);
+                    
+                }, 'image/png');
+                
+            } catch (error) {
+                // 에러 시에도 요소 복원
+                if (ctaSection) ctaSection.style.display = originalCtaDisplay;
+                if (shareSection) shareSection.style.display = originalShareDisplay;
+                
+                if (document.body.contains(loadingDiv)) {
+                    document.body.removeChild(loadingDiv);
+                }
+                console.error('이미지 생성 실패:', error);
+                alert('⚠️ 이미지 생성에 실패했습니다.\n\n"📸 사진으로 저장" 버튼을 사용해주세요!');
+            }
+        }
+        
         function copyLink() {
             const url = window.location.href;
             
@@ -909,12 +1022,15 @@
                     <button class="share-btn screenshot" onclick="takeScreenshot()">
                         📸 사진으로 저장
                     </button>
+                    <button class="share-btn instagram" onclick="shareToInstagram()">
+                        📷 인스타 스토리
+                    </button>
                     <button class="share-btn link" onclick="copyLink()">
                         🔗 링크 복사
                     </button>
                 </div>
                 <p style="font-size: 13px; color: var(--text-light); margin-top: 15px;">
-                    💡 저장한 이미지를 카톡, 인스타 등 어디든 공유하세요!
+                    💡 인스타 스토리에 바로 공유하거나 저장해서 공유하세요!
                 </p>
             </div>
         </div>
