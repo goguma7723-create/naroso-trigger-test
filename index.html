@@ -78,31 +78,41 @@
                 const dataUrl = canvas.toDataURL('image/png');
                 
                 if (isMobile) {
-                    // 모바일: Share API로 사진 앱 저장 옵션 제공
+                    // 모바일: Share API 강제 우선 (앨범 저장 위해)
                     canvas.toBlob(async function(blob) {
-                        // Share API 시도 (사진 저장 옵션 포함)
-                        if (navigator.share && navigator.canShare) {
+                        const file = new File([blob], '나로소_결과.png', { type: 'image/png' });
+                        
+                        // 디버깅: Share API 지원 확인
+                        console.log('Share API 지원:', !!navigator.share);
+                        console.log('User Agent:', navigator.userAgent);
+                        
+                        // Share API가 있으면 무조건 먼저 시도
+                        if (navigator.share) {
                             try {
-                                const file = new File([blob], '나로소_결과.png', { type: 'image/png' });
-                                
-                                if (navigator.canShare({ files: [file] })) {
-                                    await navigator.share({
-                                        files: [file],
-                                        title: '나로소 감정테스트 결과',
-                                        text: '나의 감정 친구를 찾았어요! 🦊'
-                                    });
-                                    return; // Share API 성공
+                                console.log('Share API 실행 시도...');
+                                await navigator.share({
+                                    files: [file],
+                                    title: '나로소 감정테스트 결과',
+                                    text: '나의 감정 친구를 찾았어요! 🦊'
+                                });
+                                console.log('Share API 성공!');
+                                // 성공적으로 공유했거나 사용자가 앨범에 저장했으면 여기서 종료
+                                return;
+                            } catch (error) {
+                                console.log('Share API 에러:', error.name, error.message);
+                                // 사용자가 취소했을 때만 여기 도달
+                                if (error.name === 'AbortError') {
+                                    console.log('사용자가 공유를 취소했습니다');
+                                    return; // 조용히 종료
                                 }
-                            } catch (shareError) {
-                                if (shareError.name === 'AbortError') {
-                                    // 사용자가 취소함 - 정상
-                                    return;
-                                }
-                                console.log('Share API 실패:', shareError);
+                                // Share API 에러 - 아래 다운로드 방식으로 진행
                             }
+                        } else {
+                            console.log('Share API 미지원 - 다운로드 방식 사용');
                         }
                         
-                        // Share API 실패 시: 자동 다운로드
+                        // Share API 없거나 실패 시: 다운로드 방식
+                        console.log('다운로드 방식으로 저장...');
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         const date = new Date().toISOString().slice(0,10);
@@ -111,14 +121,12 @@
                         link.click();
                         URL.revokeObjectURL(url);
                         
-                        // iOS 안내
+                        // 안내 메시지
                         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
                         if (isIOS) {
-                            setTimeout(() => {
-                                alert('📱 사진 앱에 저장하기:\n\n1️⃣ 파일 앱 열기\n2️⃣ 다운로드 폴더\n3️⃣ 이미지 선택\n4️⃣ 공유 버튼 → "이미지 저장"');
-                            }, 500);
+                            alert('📥 다운로드 완료!\n\n📱 사진 앱에 저장하기:\n\n1️⃣ 파일 앱 → 다운로드\n2️⃣ 이미지 길게 누르기\n3️⃣ 공유 → "이미지 저장"\n\n또는\n\n파일 선택 → 공유 버튼 → 사진에 저장');
                         } else {
-                            alert('✅ 이미지가 저장되었습니다!\n\n📱 갤러리에서 확인하세요!');
+                            alert('✅ 갤러리에 저장되었습니다!');
                         }
                     }, 'image/png');
                 } else {
