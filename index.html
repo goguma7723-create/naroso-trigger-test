@@ -78,18 +78,172 @@
                 const dataUrl = canvas.toDataURL('image/png');
                 
                 if (isMobile) {
-                    // 모바일: 바로 다운로드
+                    // 모바일: Share API 시도
                     canvas.toBlob(async function(blob) {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        const date = new Date().toISOString().slice(0,10);
-                        link.download = `나로소_결과_${date}.png`;
-                        link.href = url;
-                        link.click();
-                        URL.revokeObjectURL(url);
+                        let shared = false;
                         
-                        // 성공 메시지
-                        alert('✅ 이미지가 저장되었습니다!\n\n📱 사진 앱 또는 다운로드 폴더에서 확인하세요!');
+                        // Share API 시도
+                        if (navigator.share && navigator.canShare) {
+                            try {
+                                const file = new File([blob], '나로소_결과.png', { type: 'image/png' });
+                                
+                                if (navigator.canShare({ files: [file] })) {
+                                    await navigator.share({
+                                        files: [file],
+                                        title: '나로소 감정테스트 결과',
+                                        text: '나의 감정 친구를 찾았어요! 🦊'
+                                    });
+                                    shared = true;
+                                    return;
+                                }
+                            } catch (shareError) {
+                                console.log('Share API 실패:', shareError);
+                            }
+                        }
+                        
+                        // Share API 실패 시: 새 창에서 이미지 표시
+                        if (!shared) {
+                            const newWindow = window.open('', '_blank');
+                            if (newWindow) {
+                                newWindow.document.write(`
+                                    <!DOCTYPE html>
+                                    <html>
+                                    <head>
+                                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                        <meta charset="UTF-8">
+                                        <title>나로소 결과 저장하기</title>
+                                        <style>
+                                            * { 
+                                                margin: 0; 
+                                                padding: 0; 
+                                                box-sizing: border-box;
+                                                -webkit-user-select: none;
+                                                user-select: none;
+                                            }
+                                            body {
+                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                min-height: 100vh;
+                                                padding: 20px;
+                                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                                                display: flex;
+                                                flex-direction: column;
+                                                align-items: center;
+                                                justify-content: center;
+                                            }
+                                            .guide {
+                                                background: white;
+                                                padding: 25px;
+                                                border-radius: 20px;
+                                                margin-bottom: 20px;
+                                                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                                                text-align: center;
+                                                max-width: 400px;
+                                                width: 100%;
+                                            }
+                                            .guide h2 {
+                                                color: #6B5B95;
+                                                margin: 0 0 20px 0;
+                                                font-size: 22px;
+                                            }
+                                            .step {
+                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                color: white;
+                                                padding: 15px;
+                                                border-radius: 12px;
+                                                margin: 12px 0;
+                                                font-size: 15px;
+                                                font-weight: 600;
+                                                text-align: left;
+                                                display: flex;
+                                                align-items: center;
+                                            }
+                                            .step-num {
+                                                display: inline-flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                min-width: 32px;
+                                                height: 32px;
+                                                background: rgba(255,255,255,0.25);
+                                                border-radius: 50%;
+                                                margin-right: 12px;
+                                                font-size: 16px;
+                                                font-weight: bold;
+                                                flex-shrink: 0;
+                                            }
+                                            .tip {
+                                                background: #fff3cd;
+                                                color: #856404;
+                                                padding: 15px;
+                                                border-radius: 10px;
+                                                margin-top: 15px;
+                                                font-size: 13px;
+                                                line-height: 1.6;
+                                            }
+                                            .image-container {
+                                                background: white;
+                                                padding: 15px;
+                                                border-radius: 20px;
+                                                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                                                max-width: 600px;
+                                                width: 100%;
+                                            }
+                                            img {
+                                                width: 100%;
+                                                height: auto;
+                                                display: block;
+                                                border-radius: 10px;
+                                                /* 이미지 길게 누르기 활성화 */
+                                                -webkit-user-select: auto;
+                                                user-select: auto;
+                                                -webkit-touch-callout: default;
+                                            }
+                                            .arrow {
+                                                font-size: 30px;
+                                                margin: 15px 0;
+                                                animation: bounce 2s infinite;
+                                            }
+                                            @keyframes bounce {
+                                                0%, 100% { transform: translateY(0); }
+                                                50% { transform: translateY(-10px); }
+                                            }
+                                        </style>
+                                    </head>
+                                    <body>
+                                        <div class="guide">
+                                            <h2>📱 이미지 저장 방법</h2>
+                                            
+                                            <div class="step">
+                                                <span class="step-num">1</span>
+                                                <span>아래 이미지를<br><strong>길게 꾹 누르세요</strong></span>
+                                            </div>
+                                            
+                                            <div class="step">
+                                                <span class="step-num">2</span>
+                                                <span><strong>"이미지 저장"</strong> 또는<br><strong>"사진에 추가"</strong> 선택</span>
+                                            </div>
+                                            
+                                            <div class="step">
+                                                <span class="step-num">3</span>
+                                                <span>사진 앱에서 확인! ✅</span>
+                                            </div>
+                                            
+                                            <div class="tip">
+                                                💡 <strong>꼭 이미지 위를 길게 누르세요!</strong><br>
+                                                (텍스트가 아닌 이미지 영역을 누르기)
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="arrow">👇</div>
+                                        
+                                        <div class="image-container">
+                                            <img src="${dataUrl}" alt="나로소 감정테스트 결과" draggable="true">
+                                        </div>
+                                    </body>
+                                    </html>
+                                `);
+                                newWindow.document.close();
+                            }
+                        }
                     }, 'image/png');
                 } else {
                     // PC: 자동 다운로드
@@ -111,119 +265,6 @@
                 }
                 console.error('이미지 생성 실패:', error);
                 alert('⚠️ 이미지 생성에 실패했습니다.\n\n스크린샷으로 저장해주세요:\n\n📱 iPhone: 측면버튼 + 볼륨업\n📱 Android: 전원버튼 + 볼륨다운');
-            }
-        }
-        
-        async function shareToInstagram() {
-            const resultCard = document.querySelector('.result-card');
-            
-            if (!resultCard) {
-                alert('⚠️ 결과 화면을 먼저 확인해주세요!');
-                return;
-            }
-            
-            // 모바일 기기 확인
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            
-            if (!isMobile) {
-                alert('📱 인스타그램 스토리 공유는\n모바일에서만 가능합니다!\n\nPC에서는 "📸 사진으로 저장" 버튼을\n이용해주세요!');
-                return;
-            }
-            
-            // 캡처 전에 불필요한 요소 숨기기
-            const ctaSection = document.querySelector('.cta-section');
-            const shareSection = document.querySelector('.share-section');
-            const originalCtaDisplay = ctaSection ? ctaSection.style.display : '';
-            const originalShareDisplay = shareSection ? shareSection.style.display : '';
-            
-            if (ctaSection) ctaSection.style.display = 'none';
-            if (shareSection) shareSection.style.display = 'none';
-            
-            // 로딩 표시
-            const loadingDiv = document.createElement('div');
-            loadingDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(107, 91, 149, 0.95); color: white; padding: 30px 50px; border-radius: 20px; font-size: 18px; z-index: 10000; font-weight: bold;';
-            loadingDiv.textContent = '📸 이미지 생성 중...';
-            document.body.appendChild(loadingDiv);
-            
-            try {
-                const canvas = await html2canvas(resultCard, {
-                    backgroundColor: '#ffffff',
-                    scale: 3,
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: false,
-                    scrollY: -window.scrollY,
-                    scrollX: -window.scrollX,
-                    windowWidth: resultCard.scrollWidth,
-                    windowHeight: resultCard.scrollHeight
-                });
-                
-                // 숨긴 요소 복원
-                if (ctaSection) ctaSection.style.display = originalCtaDisplay;
-                if (shareSection) shareSection.style.display = originalShareDisplay;
-                
-                document.body.removeChild(loadingDiv);
-                
-                canvas.toBlob(async function(blob) {
-                    // Web Share API 시도 (파일 공유 지원)
-                    if (navigator.share && navigator.canShare) {
-                        try {
-                            const file = new File([blob], '나로소_결과.png', { type: 'image/png' });
-                            
-                            if (navigator.canShare({ files: [file] })) {
-                                await navigator.share({
-                                    files: [file],
-                                    title: '나로소 감정테스트 결과',
-                                    text: '나의 감정 친구를 찾았어요! 🦊'
-                                });
-                                return; // 성공하면 여기서 종료
-                            }
-                        } catch (shareError) {
-                            console.log('Web Share API 실패:', shareError);
-                            // 실패 시 아래 대안 방법 계속
-                        }
-                    }
-                    
-                    // 대안: 이미지 다운로드 + 인스타그램 앱 열기
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    const date = new Date().toISOString().slice(0,10);
-                    link.download = `나로소_인스타_${date}.png`;
-                    link.href = url;
-                    link.click();
-                    URL.revokeObjectURL(url);
-                    
-                    // 잠시 후 인스타그램 앱 열기 시도
-                    setTimeout(() => {
-                        // 인스타그램 앱 URL 스킴
-                        const instagramUrl = 'instagram://story-camera';
-                        
-                        // 앱 열기 시도
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = instagramUrl;
-                        document.body.appendChild(iframe);
-                        
-                        setTimeout(() => {
-                            document.body.removeChild(iframe);
-                            
-                            // 안내 메시지
-                            alert('📷 인스타그램 스토리 공유\n\n✅ 이미지가 저장되었습니다!\n\n1️⃣ 인스타그램 앱 열기\n2️⃣ 스토리 만들기 (+)\n3️⃣ 저장된 이미지 선택\n4️⃣ 스토리 게시! 🎉\n\n💡 링크를 추가하려면\n   링크 스티커를 사용하세요!');
-                        }, 100);
-                    }, 500);
-                    
-                }, 'image/png');
-                
-            } catch (error) {
-                // 에러 시에도 요소 복원
-                if (ctaSection) ctaSection.style.display = originalCtaDisplay;
-                if (shareSection) shareSection.style.display = originalShareDisplay;
-                
-                if (document.body.contains(loadingDiv)) {
-                    document.body.removeChild(loadingDiv);
-                }
-                console.error('이미지 생성 실패:', error);
-                alert('⚠️ 이미지 생성에 실패했습니다.\n\n"📸 사진으로 저장" 버튼을 사용해주세요!');
             }
         }
         
@@ -868,15 +909,12 @@
                     <button class="share-btn screenshot" onclick="takeScreenshot()">
                         📸 사진으로 저장
                     </button>
-                    <button class="share-btn instagram" onclick="shareToInstagram()">
-                        📷 인스타 스토리
-                    </button>
                     <button class="share-btn link" onclick="copyLink()">
                         🔗 링크 복사
                     </button>
                 </div>
                 <p style="font-size: 13px; color: var(--text-light); margin-top: 15px;">
-                    💡 인스타 스토리에 바로 공유하거나 저장해서 공유하세요!
+                    💡 저장한 이미지를 카톡, 인스타 등 어디든 공유하세요!
                 </p>
             </div>
         </div>
